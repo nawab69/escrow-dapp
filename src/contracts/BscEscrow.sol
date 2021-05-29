@@ -7,7 +7,7 @@ import "../../node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../../node_modules/@openzeppelin/contracts/math/SafeMath.sol";
 
 
-contract EthEscrow {
+contract BscEscrow {
     
     using SafeMath for uint256;
     
@@ -18,9 +18,9 @@ contract EthEscrow {
     uint public feeInPercent = 2;
     
     
-    IERC20 private usdt;
+    IERC20 private busd;
     
-    enum Coin {ETH, USDT}
+    enum Coin {ETH, BUSD}
     
     struct trade {
         address payee;
@@ -35,7 +35,7 @@ contract EthEscrow {
     
     constructor(IERC20 _token) public {
         agent = msg.sender;
-        usdt = IERC20(_token);
+        busd = IERC20(_token);
     }
     
     modifier onlyAgent(){
@@ -66,17 +66,17 @@ contract EthEscrow {
         trades[tradeCount].coin = Coin.ETH;
     }
     
-    function depositUsdt(address payee,uint256 amount) public {
+    function depositBusd(address payee,uint256 amount) public {
         tradeCount++;
         trades[tradeCount].payee = payee;
         trades[tradeCount].payeer = msg.sender;
         trades[tradeCount].amount = amount;
         trades[tradeCount].complete = false;
-        trades[tradeCount].coin = Coin.USDT;
+        trades[tradeCount].coin = Coin.BUSD;
         address owner = msg.sender;
-        uint allowed = usdt.allowance(owner, address(this));
+        uint allowed = busd.allowance(owner, address(this));
         require(allowed >= amount, 'Contract is not approved, please approved first');
-        usdt.transferFrom(owner,address(this),amount);
+        busd.transferFrom(owner,address(this),amount);
         
     }
     
@@ -94,9 +94,9 @@ contract EthEscrow {
         if(trades[tradeCount].coin == Coin.ETH){
             payee.transfer(amount);
             admin.transfer(fee);
-        }else if(trades[tradeCount].coin == Coin.USDT){
-            usdt.transfer(payee,amount);
-            usdt.transfer(admin,fee);
+        }else if(trades[tradeCount].coin == Coin.BUSD){
+            busd.transfer(payee,amount);
+            busd.transfer(admin,fee);
         }
         
         trades[id].complete = true;
