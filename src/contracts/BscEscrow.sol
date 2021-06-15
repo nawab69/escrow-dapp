@@ -62,7 +62,7 @@ contract BscEscrow {
     
     
     function deposit(address payee, string memory tradeId) public payable {
-        require(trades[tradeId].payee != address(0),'trade already exists');
+        require(trades[tradeId].payee === address(0),'trade already exists');
         tradeCount++;
         trades[tradeId].payee = payee;
         trades[tradeId].payeer = msg.sender;
