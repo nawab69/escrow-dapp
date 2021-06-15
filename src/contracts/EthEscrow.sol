@@ -30,7 +30,7 @@ contract EthEscrow {
         Coin coin;
     }
     
-    mapping( uint256 => trade)  public trades;
+    mapping( string => trade)  public trades;
     
     
     constructor(IERC20 _token) public {
@@ -42,6 +42,10 @@ contract EthEscrow {
         require(msg.sender == agent);
         _;
     }
+
+    event Deposited(string tradeId);
+    event Withdrawed(string tradeId);
+    event Cancelled(string tradeId);
     
     function updateFee(uint fee) public onlyAgent {
         feeInPercent = fee;
@@ -57,71 +61,77 @@ contract EthEscrow {
     
     
     
-    function deposit(address payee) public payable {
+    function deposit(address payee, string memory tradeId) public payable {
+        require(trades[tradeId].payee != address(0),'trade already exists');
         tradeCount++;
-        trades[tradeCount].payee = payee;
-        trades[tradeCount].payeer = msg.sender;
-        trades[tradeCount].amount = msg.value;
-        trades[tradeCount].complete = false;
-        trades[tradeCount].coin = Coin.ETH;
+        trades[tradeId].payee = payee;
+        trades[tradeId].payeer = msg.sender;
+        trades[tradeId].amount = msg.value;
+        trades[tradeId].complete = false;
+        trades[tradeId].coin = Coin.ETH;
+        emit Deposited(tradeId);
     }
     
-    function depositUsdt(address payee,uint256 amount) public {
+    function depositUsdt(address payee,uint256 amount,string memory tradeId) public {
         tradeCount++;
-        trades[tradeCount].payee = payee;
-        trades[tradeCount].payeer = msg.sender;
-        trades[tradeCount].amount = amount;
-        trades[tradeCount].complete = false;
-        trades[tradeCount].coin = Coin.USDT;
+        trades[tradeId].payee = payee;
+        trades[tradeId].payeer = msg.sender;
+        trades[tradeId].amount = amount;
+        trades[tradeId].complete = false;
+        trades[tradeId].coin = Coin.USDT;
         address owner = msg.sender;
         uint allowed = usdt.allowance(owner, address(this));
         require(allowed >= amount, 'Contract is not approved, please approved first');
         usdt.transferFrom(owner,address(this),amount);
-        
+        emit Deposited(tradeId);
     }
     
     
     
     
-    function withdraw(uint256 id) public {
-        
-        require(!trades[id].complete);
-        require(trades[id].payeer == msg.sender);
-        address payable  payee = address(uint160(trades[id].payee));
+    function withdraw(string memory tradeId) public {
+        require(!trades[tradeId].complete);
+        require(trades[tradeId].payeer == msg.sender);
+        address payable  payee = address(uint160(trades[tradeId].payee));
         address  payable admin = address(uint160(agent));
-        uint fee = escrowFee(trades[id].amount);
-        uint amount = trades[id].amount - fee;
-        if(trades[tradeCount].coin == Coin.ETH){
+        uint fee = escrowFee(trades[tradeId].amount);
+        uint amount = trades[tradeId].amount - fee;
+        if(trades[tradeId].coin == Coin.ETH){
             payee.transfer(amount);
             admin.transfer(fee);
-        }else if(trades[tradeCount].coin == Coin.USDT){
+        }else if(trades[tradeId].coin == Coin.USDT){
             usdt.transfer(payee,amount);
             usdt.transfer(admin,fee);
         }
         
-        trades[id].complete = true;
+        trades[tradeId].complete = true;
+        
+        emit Withdrawed(tradeId);
         
     }
     
     
     
-    function withdrawFromAgent(uint256 id) public onlyAgent{
-        require(!trades[id].complete);
-        address payable payee = address(uint160(trades[id].payee));
+    function withdrawFromAgent(string memory tradeId) public onlyAgent{
+        require(!trades[tradeId].complete);
+        address payable payee = address(uint160(trades[tradeId].payee));
         address payable  admin = address(uint160(agent));
-        uint amount = trades[id].amount - escrowFee(trades[id].amount);
+        uint amount = trades[tradeId].amount - escrowFee(trades[tradeId].amount);
         payee.transfer(amount);
-        admin.transfer(escrowFee(trades[id].amount));
-        trades[id].complete = true;
+        admin.transfer(escrowFee(trades[tradeId].amount));
+        trades[tradeId].complete = true;
+        emit Withdrawed(tradeId);
     }
     
-    function cancel(uint256 id) public {
-        require(!trades[id].complete);
-        require(trades[id].payee == msg.sender || agent == msg.sender);
-        address payable payeer = address(uint160(trades[id].payeer));
-        payeer.transfer(trades[id].amount);
-        trades[id].complete = true;
+    function cancel(string memory tradeId) public {
+        require(!trades[tradeId].complete,'Trade already completed');
+        require(trades[tradeId].payee == msg.sender || agent == msg.sender,'You are not buyer or agent');
+        address payable payeer = address(uint160(trades[tradeId].payeer));
+        payeer.transfer(trades[tradeId].amount);
+        trades[tradeId].complete = true;
+        emit Cancelled(tradeId);
     }
+    
     
     
      function changeAgent(address _agent) public onlyAgent {
