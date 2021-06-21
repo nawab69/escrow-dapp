@@ -62,7 +62,7 @@ contract EthEscrow {
     
     
     function deposit(address payee, string memory tradeId) public payable {
-        require(trades[tradeId].payee === address(0),'trade already exists');
+        require(trades[tradeId].payee == address(0),'trade already exists');
         tradeCount++;
         trades[tradeId].payee = payee;
         trades[tradeId].payeer = msg.sender;
@@ -73,6 +73,7 @@ contract EthEscrow {
     }
     
     function depositUsdt(address payee,uint256 amount,string memory tradeId) public {
+        require(trades[tradeId].payee == address(0),'trade already exists');
         tradeCount++;
         trades[tradeId].payee = payee;
         trades[tradeId].payeer = msg.sender;
@@ -123,11 +124,18 @@ contract EthEscrow {
         emit Withdrawed(tradeId);
     }
     
+
+
     function cancel(string memory tradeId) public {
         require(!trades[tradeId].complete,'Trade already completed');
         require(trades[tradeId].payee == msg.sender || agent == msg.sender,'You are not buyer or agent');
         address payable payeer = address(uint160(trades[tradeId].payeer));
-        payeer.transfer(trades[tradeId].amount);
+        if(trades[tradeId].coin == Coin.ETH){
+            payeer.transfer(trades[tradeId].amount);
+        }else if(trades[tradeId].coin == Coin.USDT){
+            usdt.transfer(trades[tradeId].payeer,trades[tradeId].amount);
+        }
+       
         trades[tradeId].complete = true;
         emit Cancelled(tradeId);
     }
